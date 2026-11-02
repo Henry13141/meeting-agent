@@ -1,0 +1,5 @@
+{
+  "runtimePython": "/请由Codex替换为本机Runtime环境的Python绝对路径",
+  "asrPython": "/请由Codex替换为本机ASR环境的Python绝对路径",
+  "asrModelPath": "/请由Codex替换为本机SenseVoiceSmall模型目录绝对路径"
+}
