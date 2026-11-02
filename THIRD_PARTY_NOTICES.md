@@ -6,4 +6,4 @@ JavaScript dependencies are listed with exact versions in package.json and pnpm-
 
 Model weights are not included. Obtain the model's license and model card with the exact version you use, and retain them with your local model package. The source license does not grant rights to third-party model weights. See models/meeting-asr/README.md for source links.
 
-The meeting state illustration is implemented directly as SVG/CSS source in this repository. No external avatar images, videos or voice assets are distributed.
+The 12 bundled local character video clips in apps/desktop/src/meeting-assistant/assets/character are distributed as project assets under the root MIT license. The local player does not include a cloud avatar SDK or require an avatar service account. No voice assets or model weights are bundled.

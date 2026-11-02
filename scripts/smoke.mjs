@@ -15,8 +15,10 @@ const launch = () => _electron.launch({ executablePath: require('electron'), arg
   '--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', '--autoplay-policy=no-user-gesture-required'], env, timeout: 60_000 });
 async function clickControl(page, name) {
   const size = await page.evaluate(() => ({ width: innerWidth, height: innerHeight }));
-  await page.mouse.move(size.width / 2, size.height - 25);
-  const button = page.getByRole('button', { name, exact: true });
+  await page.mouse.move(size.width / 2, size.height / 2);
+  await page.mouse.move(size.width / 2, size.height - 25, { steps: 5 });
+  const button = page.getByRole('button', { name, exact: true, includeHidden: true });
+  await button.waitFor({ state: 'attached', timeout: 10_000 });
   await button.focus();
   await button.press('Enter');
 }
@@ -30,6 +32,22 @@ try {
   await page.waitForFunction(async () => (await window.meetingHost.status()).runtime.ready, { timeout: 60_000 });
   const status = await page.evaluate(() => window.meetingHost.status());
   assert.equal(status.runtime.modelReady, false, 'Smoke must run without a real model credential');
+  await page.waitForFunction(() => [...document.querySelectorAll('video.meeting-stage__video')]
+    .some((video) => !video.paused && video.readyState >= 2 && video.videoWidth > 0), { timeout: 20_000 });
+  const framesBefore = await page.evaluate(() => [...document.querySelectorAll('video.meeting-stage__video')]
+    .reduce((total, video) => total + video.getVideoPlaybackQuality().totalVideoFrames, 0));
+  await page.waitForTimeout(1_000);
+  const animation = await page.evaluate(() => {
+    const canvas = document.querySelector('canvas.meeting-stage__canvas');
+    const pixels = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
+    return { decodedFrames: [...document.querySelectorAll('video.meeting-stage__video')]
+      .reduce((total, video) => total + video.getVideoPlaybackQuality().totalVideoFrames, 0),
+      canvasWidth: canvas.width, canvasHeight: canvas.height,
+      painted: pixels.some((value, index) => index % 4 !== 3 && value > 30) };
+  });
+  assert.ok(animation.decodedFrames > framesBefore, 'Local avatar video frames advance');
+  assert.ok(animation.painted && animation.canvasWidth > 0 && animation.canvasHeight > 0, 'Avatar canvas is painted');
+  await page.screenshot({ path: path.join(evidence, 'meeting-idle-animation.png') });
   const cap = await page.evaluate(() => window.meetingAgent.meetings.getCapabilities());
   assert.equal(cap.localAsr, true);
   assert.equal(cap.voiceActivation, false);
@@ -51,6 +69,13 @@ try {
   });
   assert.match(rejection.noModel, /MODEL_NOT_CONFIGURED/);
   assert.match(rejection.unsafe, /MEETING_REQUEST_INVALID/);
+  await clickControl(page, '重播回答');
+  await page.waitForFunction(() => [...document.querySelectorAll('video.meeting-stage__video')]
+    .some((video) => video.dataset.active === 'true' && video.dataset.clip?.startsWith('speaking-') && !video.paused),
+  null, { timeout: 10_000 });
+  await page.screenshot({ path: path.join(evidence, 'meeting-answer-animation.png') });
+  animation.answerSequencePlayed = true;
+  await page.waitForTimeout(3_300);
   const before = await page.evaluate(() => window.meetingAgent.meetings.list(50));
   await clickControl(page, '开始记录');
   await page.waitForFunction(async (existing) => (await window.meetingAgent.meetings.list(50)).some((m) => !existing.includes(m.id) && m.status === 'recording'), before.map((m) => m.id), { timeout: 30_000 });
@@ -100,7 +125,7 @@ try {
   assert.ok(!sessions.some((name) => name.endsWith('.partial')), 'No unfinalized tail after normal close');
   assert.deepEqual(errors, []);
   await fs.writeFile(path.join(evidence, 'electron-smoke.json'), JSON.stringify({ passed: true, testedAt: new Date().toISOString(),
-    simulatedAudioDevice: true, realMicrophoneAccepted: false, realModelAccepted: false,
+    simulatedAudioDevice: true, realMicrophoneAccepted: false, realModelAccepted: false, animation,
     asrCapabilities: cap, nodeIsolation: isolated, runtimeRejection: rejection,
     archived: { id: current.id, audioChunks: archived.audio.length, transcriptRows: archived.transcript.length },
     closeFlush: { id: closingMeeting.id, audioChunks: closedRecord.audio.length, finalizedArchive: true },

@@ -404,17 +404,15 @@
   .meeting-stage__topbar, .meeting-dock { transition: none; }
 }
 
-.meeting-character { position: absolute; inset: 10% 15% 22%; display: flex; align-items: center; justify-content: center; color: #d9edf0; pointer-events: none; }
-.meeting-character svg { width: min(70vh, 580px); max-width: 100%; overflow: visible; transition: transform .6s ease; }
-.meeting-character[data-direction="left"] svg { transform: translateX(-3%) rotate(-4deg); }
-.meeting-character[data-direction="right"] svg { transform: translateX(3%) rotate(4deg); }
-.meeting-character__halo { fill: #77b8bf0a; stroke: #77b8bf30; stroke-width: 1; }
-.meeting-character__face { fill: #152d36; stroke: #8dc7cc; stroke-width: 2; }
-.meeting-character circle:not(.meeting-character__halo) { fill: currentColor; }
-.meeting-character__mouth, .meeting-character__antenna { fill: none; stroke: currentColor; stroke-width: 4; stroke-linecap: round; }
-.meeting-character__signal { position: absolute; bottom: 4%; display: flex; gap: 7px; height: 32px; align-items: center; }
-.meeting-character__signal i { width: 4px; height: 8px; border-radius: 4px; background: #8dc7cc; }
-.meeting-character.is-speaking .meeting-character__signal i { animation: meeting-signal .65s ease-in-out infinite alternate; }
-.meeting-character.is-speaking .meeting-character__signal i:nth-child(2n) { animation-delay: -.3s; }
-@keyframes meeting-signal { to { height: 30px; } }
-@media (prefers-reduced-motion: reduce) { .meeting-character svg { transition: none; } .meeting-character.is-speaking .meeting-character__signal i { animation: none; height: 20px; } }
+/* Local prerecorded presenter, with no remote surface. */
+.meeting-stage__video {
+  position: absolute; inset: 0; z-index: 0; width: 100%; height: 100%;
+  object-fit: cover; object-position: center top; pointer-events: none;
+  opacity: 0;
+}
+.meeting-stage__video--wide { object-position: center 18%; }
+.meeting-stage__video.is-inactive { opacity: 0; }
+.meeting-stage__canvas { position: absolute; inset: 0; z-index: 0; width: 100%; height: 100%; pointer-events: none; }
+.meeting-stage__video-error { position: absolute; z-index: 1; inset: 45% 24px auto; margin: 0; text-align: center; font-size: 13px; }
+.meeting-stage.is-thinking .meeting-stage__canvas { filter: saturate(.82) brightness(.78); transform: scale(1.012); transition: filter 240ms ease, transform 900ms ease; }
+.meeting-stage.is-thinking .meeting-stage__video:not(.is-inactive) { filter: saturate(.82) brightness(.78); transform: scale(1.012); transition: filter 240ms ease, transform 900ms ease; }

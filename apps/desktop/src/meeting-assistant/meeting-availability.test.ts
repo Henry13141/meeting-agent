@@ -24,9 +24,10 @@ describe('independent meeting availability', () => {
     window.meetingAgent = { agent: {} } as MeetingDesktopApi;
     const view = document.createElement('div');
     view.innerHTML = renderToStaticMarkup(createElement(MeetingAssistant));
-    expect(view.querySelector('img, video, webview')).toBeNull();
-    expect(view.querySelector('.meeting-character svg')).not.toBeNull();
-    expect(view.textContent).toContain('状态视觉');
+    expect(view.querySelector('img, webview')).toBeNull();
+    expect(view.querySelectorAll('video')).toHaveLength(3);
+    expect(view.querySelector('canvas.meeting-stage__canvas')).not.toBeNull();
+    expect(view.textContent).toContain('角色动画');
     expect(view.textContent).not.toContain('（未接入）');
     expect(view.textContent).toContain('.local-data/recordings/本场会议目录');
     expect(view.textContent).toContain('语音未配置');

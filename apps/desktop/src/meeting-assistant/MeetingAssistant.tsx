@@ -128,6 +128,7 @@ export function MeetingAssistant({ active = true, onRecordingChange }: { active?
   const [speakerDirection, setSpeakerDirection] = useState<SpeakerDirection>('center');
   const [characterSpeaking, setCharacterSpeaking] = useState(false);
   const characterPlayback = useRef<MeetingCharacterPlayback | null>(null);
+  const textReplyAnimationTimer = useRef<number | null>(null);
   const [directionMode, setDirectionMode] = useState<'unknown' | MeetingDirectionMode>('unknown');
   const [avatarSession, setAvatarSession] = useState<MeetingAvatarSession | null>(null);
   const [avatarFrameReady, setAvatarFrameReady] = useState(false);
@@ -613,6 +614,8 @@ export function MeetingAssistant({ active = true, onRecordingChange }: { active?
   }
 
   function stopCharacterSpeech(): void {
+    if (textReplyAnimationTimer.current !== null) window.clearTimeout(textReplyAnimationTimer.current);
+    textReplyAnimationTimer.current = null;
     characterPlayback.current?.stopSpeech();
     setCharacterSpeaking(false);
     avatarVisualStarted.current = false;
@@ -653,7 +656,14 @@ export function MeetingAssistant({ active = true, onRecordingChange }: { active?
       void speakWithNeural(text);
       return;
     }
-    finishUnavailableSpeech();
+    // Text-only answers still have local presentation feedback. This is not
+    // synthesized speech, and it must not block microphone capture or wake-up.
+    finishAssistantSpeech();
+    stopCharacterSpeech();
+    setCharacterSpeaking(true);
+    textReplyAnimationTimer.current = window.setTimeout(stopCharacterSpeech, 3_000);
+    setMemoryStatus('文字回答已显示；角色动画仅为本地展示，语音未配置');
+    resumeListeningIfDesired();
   }
 
   function cancelNeuralSpeech(): void {
@@ -1633,7 +1643,7 @@ export function MeetingAssistant({ active = true, onRecordingChange }: { active?
               const enabled = event.currentTarget.checked;
               setVideoCharacterEnabled(enabled);
               if (!enabled) void window.meetingAgent.meetings.releaseAvatar().then(setAvatarSession).catch(() => {});
-            }} />状态视觉</label>
+            }} />角色动画</label>
             <span role="status">{meetingCapabilities?.tts.available ? "语音播报已配置" : "语音未配置，回答以文字显示"}</span>
             <span>录音保存到：.local-data/recordings/本场会议目录</span>
             <span>云文档集成可后续选配；当前使用本地导出。</span>
