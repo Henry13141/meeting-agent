@@ -659,11 +659,10 @@ export function MeetingAssistant({ active = true, onRecordingChange }: { active?
     // Text-only answers still have local presentation feedback. This is not
     // synthesized speech, and it must not block microphone capture or wake-up.
     finishAssistantSpeech();
-    stopCharacterSpeech();
+    resumeListeningIfDesired();
     setCharacterSpeaking(true);
     textReplyAnimationTimer.current = window.setTimeout(stopCharacterSpeech, 3_000);
     setMemoryStatus('文字回答已显示；角色动画仅为本地展示，语音未配置');
-    resumeListeningIfDesired();
   }
 
   function cancelNeuralSpeech(): void {
