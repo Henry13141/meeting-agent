@@ -32,6 +32,6 @@ export async function runMeetingSummaryTurn(
     requestId: crypto.randomUUID(), threadId: thread.id, message,
     modelProfileId: catalog.defaultProfileId, thinking: { enabled: false },
     catalogRevision: catalog.revision, capabilityRevision: capability.revision,
-    accessMode: 'read_only', mcpTools: [],
+    accessMode: 'read_only', mcpTools: [], extensionSkillIds: [],
   });
 }

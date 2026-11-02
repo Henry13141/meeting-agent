@@ -77,7 +77,8 @@ describe.skipIf(!sourcePython)('generic model transport and durable meeting conv
     const requests: Array<{ body: { messages: Array<{ role: string; content: string }>; [key: string]: unknown }; auth?: string }> = [];
     const server = createServer(async (req, res) => {
       let body = '';
-      for await (const chunk of req) body += chunk;
+      try { for await (const chunk of req) body += chunk; }
+      catch (error) { if (req.aborted) return; throw error; }
       const parsed = JSON.parse(body);
       requests.push({ body: parsed, auth: req.headers.authorization });
       if (parsed.messages.at(-1).content === 'slow') return;

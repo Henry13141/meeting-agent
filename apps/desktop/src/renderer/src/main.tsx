@@ -32,7 +32,7 @@ function App() {
         <dt>模型问答与纪要</dt><dd>{status?.runtime.modelReady ? '接口已配置，实际效果以调用结果为准' : '请在本机 .env.local 配置模型接口后重启'}</dd>
         <dt>本地语音识别</dt><dd>{status?.asr.ready ? '已就绪' : status?.asr.error ? '不可用，请检查本机配置' : '正在准备本机服务'}</dd>
         <dt>数据保存</dt><dd>本项目 .local-data 目录</dd>
-        <dt>云文档与协作软件</dt><dd>第一步先保存到本机；后续按实际办公软件选择接入，当前未同步云文档。</dd>
+        <dt>云文档与协作软件</dt><dd>本机记录独立保存。启用扩展技能后，外部读写按所接工具执行；写入前需具体确认。</dd>
       </dl>
       {status?.runtime.error ? <p role="status">运行提示：{status.runtime.error}</p> : null}
       {status?.asr.error ? <p role="status">转写提示：{status.asr.error}</p> : null}

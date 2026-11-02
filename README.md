@@ -63,11 +63,17 @@ pnpm run start
 
 开始记录后，音频分片和逐字稿保存在 `.local-data/`。暂停、结束会议后可回看历史、检索文字、播放或导出录音、重新生成总结和导出 Markdown。正常关窗先保存录音尾片，再停止后台服务。
 
-会议 Agent 只接受会议文字和本地行动草稿；支持确认后结束会议、打开录音目录、播放录音。模型服务没有命令、代码编辑、任意文件读取或外部写入工具。
+会议 Agent 支持本地行动草稿，以及确认后结束会议、打开录音目录和播放录音。还可按本机配置接入 MCP 工具，并用 `SKILL.md` 描述办公流程；每次仅向模型提供所选 Skill 的工具。外部写入展示具体参数后逐次确认，拒绝、取消或重启后不自动重放。模型不能执行任意 shell、代码编辑或任意文件读取。
 
-`.local-data/`、`.local-paths.json`、`.env.local`、虚拟环境和模型权重均不提交。资料按本机操作系统用户存储；共享电脑需自行使用合适的系统账户和目录权限。
+`.local-data/`、`.local-paths.json`、`.env.local`、`.agent/extensions.json`、`.agent/skills/`、虚拟环境和模型权重均不提交。资料按本机操作系统用户存储；共享电脑需自行使用合适的系统账户和目录权限。
 
-云文档、任务系统、联网搜索和远程语音合成当前未接入。先使用本地导出，后续按实际办公软件选择连接器，参见 [云文档可选接入](docs/云文档可选接入.md)。
+## 按需接入办公工具与 Skills
+
+扩展默认关闭。复制根目录 `agent-extensions.example.json` 到 `.agent/extensions.json` 后，可显式启用本地模拟办公服务；它支持检索文档、创建文档与创建任务，文件只保存在 `.local-data/mock-office/`。配套的 `skills/office-assistant/SKILL.md` 演示先检索、整理内容、展示具体参数、确认后写入和核对回执。Skill 本身不会完成授权，也不代表软件已经接入。
+
+后续按实际办公软件配置 stdio 或 Streamable HTTP MCP server；只有业务 API 时编写薄 MCP 适配器，不必改会议核心。密钥通过进程环境变量引用，不写入示例或 Skill，扩展 token 也不放进只支持三个模型变量的 `.env.local`。详见 [扩展接入指南](docs/扩展接入指南.md) 和 [云文档可选接入](docs/云文档可选接入.md)。
+
+真实云文档、任务平台、联网搜索和远程语音合成当前未接入。模拟写入和工具目录可见不代表实际平台已授权或已同步，实际使用前需对目标软件单独接入与测试。
 
 ## 开发与验证
 
@@ -75,6 +81,7 @@ pnpm run start
 pnpm run typecheck
 pnpm test
 pnpm run build
+pnpm run smoke:extensions
 uv run --directory services/runtime --frozen --group dev pytest
 uv run --directory services/meeting-asr --frozen --group dev pytest
 ```
@@ -89,4 +96,4 @@ Runtime 桥接集成测试需要设置 `MEETING_AGENT_RUNTIME_TEST_PYTHON` 为�
 
 欢迎提交问题和 Pull Request；请附复现步骤、平台与必要日志，移除密钥和会议原文。提交前运行与改动相关的检查。源代码许可见 [LICENSE](LICENSE)，依赖与模型说明见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
 
-**大白话：** 拉下项目后，让 Codex 把本机依赖和转写模型配好，再填自己的模型接口。先录一小段确认录音、转写、问答和纪要都能用；云文档以后按实际使用的软件接入。
+**大白话：** 拉下项目后，让 Codex 把本机依赖和转写模型配好，再填自己的模型接口。先录一小段确认录音、转写、问答和纪要都能用；办公操作先用本地示例跑通，大家用什么软件，后续就接什么软件，每次外部写入看清内容再确认。

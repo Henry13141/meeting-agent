@@ -1,6 +1,8 @@
 node_modules/
 .local-data/
 .local-paths.json
+.agent/extensions.json
+.agent/skills/
 .local-paths.json.*.tmp
 .env
 .env.*

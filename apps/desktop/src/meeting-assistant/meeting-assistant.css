@@ -416,3 +416,17 @@
 .meeting-stage__video-error { position: absolute; z-index: 1; inset: 45% 24px auto; margin: 0; text-align: center; font-size: 13px; }
 .meeting-stage.is-thinking .meeting-stage__canvas { filter: saturate(.82) brightness(.78); transform: scale(1.012); transition: filter 240ms ease, transform 900ms ease; }
 .meeting-stage.is-thinking .meeting-stage__video:not(.is-inactive) { filter: saturate(.82) brightness(.78); transform: scale(1.012); transition: filter 240ms ease, transform 900ms ease; }
+
+.meeting-extensions { margin-top: 12px; padding: 12px 0 4px; border-top: 1px solid rgba(255,255,255,.14); }
+.meeting-extensions header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.meeting-extensions p, .meeting-extensions li { font-size: 12px; line-height: 1.6; }
+.meeting-extensions__skills { display: grid; gap: 10px; margin: 10px 0; }
+.meeting-extensions__skills label { display: flex; align-items: flex-start; gap: 8px; }
+.meeting-extensions small { display: block; color: #d5cfe0; line-height: 1.5; overflow-wrap: anywhere; }
+.meeting-tool-progress { margin: 10px 0; color: #ddd3f0; font-size: 13px; overflow-wrap: anywhere; }
+.meeting-tool-approval { margin-top: 12px; padding: 14px; background: #241d35; border: 1px solid #c4a0ff; border-radius: 10px; }
+.meeting-tool-approval h3 { margin: 0 0 10px; font-size: 16px; }
+.meeting-tool-approval p { margin: 8px 0; font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
+.meeting-tool-approval pre { max-height: 200px; overflow: auto; padding: 12px; border-radius: 6px; background: #120e1d; color: #f3effa; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; }
+.meeting-tool-approval > div { display: flex; gap: 10px; }
+.meeting-tool-approval button { padding: 8px 12px; border-radius: 6px; background: #7b4fd6; }

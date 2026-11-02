@@ -4,6 +4,8 @@ import { access, mkdir, realpath, stat } from 'node:fs/promises';
 import { constants } from 'node:fs';
 import net from 'node:net';
 import path from 'node:path';
+import { integrationEnvironment } from './integration-environment';
+import type { MeetingExtensionCatalog, MeetingToolCall, ToolApprovalRequest } from '../shared/contracts';
 
 export interface MeetingRuntimeOptions {
   projectRoot: string;
@@ -40,9 +42,10 @@ export interface MeetingEventPage {
 export interface MeetingRunInput {
   requestId?: string; message: string; modelProfileId?: string;
   thinking?: { enabled: boolean; effort?: 'low' | 'high' | 'max' };
+  extensionSkillIds?: string[];
 }
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const INPUT_FIELDS = new Set(['requestId', 'message', 'modelProfileId', 'thinking', 'accessMode',
+const INPUT_FIELDS = new Set(['requestId', 'message', 'modelProfileId', 'thinking', 'extensionSkillIds', 'accessMode',
   'workspaceReadAllowed', 'fullAccess', 'mcpTools', 'mcpWriteTools', 'durableMemoryWrite', 'approvalMode']);
 
 function fail(code: string): never { throw new Error(code); }
@@ -132,6 +135,24 @@ export class MeetingRuntime {
 
   async catalog(): Promise<MeetingCatalog> { await this.ensureStarted(); return await this.request('/v1/models'); }
 
+  async extensions(): Promise<MeetingExtensionCatalog> {
+    await this.ensureStarted(); return await this.request('/v1/extensions', undefined, 45_000);
+  }
+
+  async resolveToolApproval(input: ToolApprovalRequest): Promise<{ accepted: boolean }> {
+    await this.ensureStarted(); this.assertRun(input.threadId, input.runId);
+    if (!UUID.test(input.approvalId) || !['approve', 'deny'].includes(input.decision)) fail('TOOL_APPROVAL_INVALID');
+    const result = await this.request<{ resolved: boolean }>(`/v1/threads/${input.threadId}/runs/${input.runId}/approvals/${input.approvalId}`,
+      { method: 'POST', body: JSON.stringify({ decision: input.decision }) });
+    return { accepted: result.resolved === true };
+  }
+
+  async toolCalls(threadId: string, runId: string): Promise<MeetingToolCall[]> {
+    await this.ensureStarted(); this.assertRun(threadId, runId);
+    const result = await this.request<{ toolCalls: MeetingToolCall[] }>(`/v1/threads/${threadId}/runs/${runId}/tool-calls`);
+    return result.toolCalls;
+  }
+
   async ensureThread(contextId: string): Promise<MeetingThread> {
     if (typeof contextId !== 'string' || !contextId.trim() || contextId.length > 256) fail('MEETING_CONTEXT_INVALID');
     await this.ensureStarted();
@@ -165,7 +186,8 @@ export class MeetingRuntime {
         conversationMode: 'daily_chat', modelProfileId: profileId,
         thinking: input.thinking ?? { enabled: false }, catalogRevision: catalog.revision,
         capabilityRevision: capability.revision, accessMode: 'read_only', workspaceReadAllowed: false,
-        fullAccess: false, approvalMode: 'on_request', durableMemoryWrite: 'unavailable', mcpTools: [], mcpWriteTools: [] }),
+        fullAccess: false, approvalMode: 'on_request', durableMemoryWrite: 'unavailable', mcpTools: [], mcpWriteTools: [],
+        extensionSkillIds: input.extensionSkillIds ?? [] }),
     }, 60_000);
     const runId = response.headers.get('x-meeting-agent-run-id');
     if (!runId || !UUID.test(runId)) { await response.body?.cancel(); fail('MEETING_RUNTIME_RUN_ID_MISSING'); }
@@ -273,9 +295,12 @@ export class MeetingRuntime {
       if (this.child === child) { this.lifecycleAbort.abort(); this.child = null; this.health = undefined;
         if (this.phase !== 'stopped') { this.phase = 'failed'; this.error = 'MEETING_RUNTIME_EXITED'; } }
     });
-    child.stdin.write(JSON.stringify({ schemaVersion: 'meeting-runtime.v1', port,
-      bearerToken: this.bearer, dataRoot: this.dataRoot,
-      model, exitOnStdinClose: true }) + '\n');
+    const bootstrap = JSON.stringify({ schemaVersion: 'meeting-runtime.v1', port,
+      bearerToken: this.bearer, dataRoot: this.dataRoot, projectRoot: this.root,
+      integrationEnvironment: await integrationEnvironment(this.root, this.environment),
+      model, exitOnStdinClose: true });
+    if (Buffer.byteLength(bootstrap) > 131_072) fail('MEETING_RUNTIME_BOOTSTRAP_TOO_LARGE');
+    child.stdin.write(bootstrap + '\n');
     const deadline = Date.now() + 30_000;
     while (Date.now() < deadline) {
       if (this.child !== child || child.exitCode !== null || child.signalCode !== null) fail('MEETING_RUNTIME_START_FAILED');
@@ -320,6 +345,9 @@ export class MeetingRuntime {
       fail('MEETING_READ_ONLY_REQUIRED');
     }
     if (typeof input.message !== 'string' || !input.message.trim() || input.message.length > 24_000) fail('MEETING_MESSAGE_INVALID');
+    if (input.extensionSkillIds !== undefined && (!Array.isArray(input.extensionSkillIds)
+      || input.extensionSkillIds.length > 16
+      || input.extensionSkillIds.some((id) => typeof id !== 'string' || !/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$/.test(id)))) fail('SKILL_NOT_FOUND');
   }
   private async request<T>(route: string, init?: RequestInit, timeoutMs = 15_000): Promise<T> {
     const response = await this.fetchResponse(route, init, timeoutMs);
@@ -334,7 +362,13 @@ export class MeetingRuntime {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${this.bearer}` } });
       if (!response.ok) {
         // Never surface response payloads containing credential inputs or private prompt content.
-        await response.body?.cancel(); fail(`MEETING_RUNTIME_HTTP_${response.status}`);
+        const fixedCodes = new Set(['EXTENSION_CONFIG_INVALID', 'SKILL_NOT_FOUND', 'SKILL_UNAVAILABLE',
+          'TOOL_NOT_ALLOWED', 'TOOL_ARGUMENTS_INVALID', 'TOOL_CALL_LIMIT_EXCEEDED', 'TOOL_TIMEOUT',
+          'TOOL_APPROVAL_TIMEOUT', 'TOOL_APPROVAL_DENIED', 'MCP_SERVER_UNAVAILABLE', 'MCP_TOOL_FAILED',
+          'TOOL_RESULT_TOO_LARGE', 'SKILL_TOO_LARGE', 'EXTENSION_LIMIT_EXCEEDED', 'MODEL_RESPONSE_TOO_LARGE']);
+        const payload = await response.json().catch(() => null) as { detail?: unknown } | null;
+        if (typeof payload?.detail === 'string' && fixedCodes.has(payload.detail)) fail(payload.detail);
+        fail(`MEETING_RUNTIME_HTTP_${response.status}`);
       }
       return response;
     } finally { clearTimeout(timer); }
