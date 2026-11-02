@@ -37,6 +37,8 @@ import type { SpeakerDirection } from './speaker-direction';
 import './meeting-assistant.css';
 
 import { MeetingRunClient, MeetingTurnQueue } from './meeting-turns';
+import { MeetingExtensions, MeetingToolApprovalCard, MeetingToolProgressView } from './MeetingExtensions';
+import type { MeetingToolApproval, MeetingToolProgress } from './meeting-tool-events';
 import { MeetingDialogContexts, prepareMeetingContext, runMeetingSummaryTurn } from './meeting-context';
 import { localActionAvailable, MEETING_DEFAULT_SKILLS, meetingSkillAvailable } from './meeting-availability';
 import { meetingErrorMessage } from './meeting-error';
@@ -134,11 +136,14 @@ export function MeetingAssistant({ active = true, onRecordingChange }: { active?
   const [avatarFrameReady, setAvatarFrameReady] = useState(false);
   const [enabledSkillIds, setEnabledSkillIds] = useState<MeetingSkillId[]>([...MEETING_DEFAULT_SKILLS]);
   const [meetingPromptAddon, setMeetingPromptAddon] = useState('');
+  const [extensionSkillIds, setExtensionSkillIds] = useState<string[]>([]);
+  const [toolApproval, setToolApproval] = useState<MeetingToolApproval | null>(null);
+  const [toolProgress, setToolProgress] = useState<MeetingToolProgress | null>(null);
   const [pendingAction, setPendingAction] = useState<MeetingProposedAction | null>(null);
   const [agentConnecting, setAgentConnecting] = useState(false);
   const activeRequestId = useRef('');
   const turns = useMemo(() => new MeetingTurnQueue(), []);
-  const runClient = useMemo(() => new MeetingRunClient(window.meetingAgent.agent), []);
+  const runClient = useMemo(() => new MeetingRunClient(window.meetingAgent.agent, { approval: setToolApproval, progress: setToolProgress }), []);
   const summaryTurns = useMemo(() => new MeetingTurnQueue(), []);
   const summaryRunClient = useMemo(() => new MeetingRunClient(window.meetingAgent.agent), []);
   const completing = useRef(false);
@@ -218,7 +223,7 @@ export function MeetingAssistant({ active = true, onRecordingChange }: { active?
     const avatarOverlay = avatarSession?.provider === 'disabled'
       && (avatarSession.state === 'connecting' || avatarSession.state === 'live');
     return chromeHovering.current || settingsOpen.current || historyOpen || Boolean(pendingActionRef.current)
-      || Boolean(avatarOverlay)
+      || Boolean(avatarOverlay) || Boolean(toolApproval)
       || Boolean(stageRef.current?.querySelector('.meeting-stage__topbar :focus-visible, .meeting-dock :focus-visible, .meeting-digital-human-switch :focus-visible'));
   }
   function scheduleChromeHide() {
@@ -300,6 +305,11 @@ export function MeetingAssistant({ active = true, onRecordingChange }: { active?
     if (context && context.state !== 'closed') void context.close().catch(() => {});
     clearChromeHide();
   }, [audioRecorder]);
+  useEffect(() => {
+    if (active) return;
+    turns.clear();
+    void runClient.cancel().catch(() => {});
+  }, [active, runClient, turns]);
   const selectedDigitalHuman = meetingDigitalHumanProfile(digitalHumanId);
   useEffect(() => {
     if (!active) return;
@@ -315,7 +325,7 @@ export function MeetingAssistant({ active = true, onRecordingChange }: { active?
   }, [active, stageOpen]);
   useEffect(() => {
     syncChromePin();
-  }, [pendingAction, historyOpen, avatarSession?.state]);
+  }, [pendingAction, toolApproval, historyOpen, avatarSession?.state]);
   useEffect(() => {
     let active = true;
     void window.meetingAgent.meetings.list(50).then(async (records) => {
@@ -874,7 +884,7 @@ export function MeetingAssistant({ active = true, onRecordingChange }: { active?
     const assertActive = () => { if (revision !== turns.revision) throw new Error('MEETING_TURN_CANCELLED'); };
     const trimmed = questionValue.trim();
     if (!trimmed || status === 'starting') return;
-    if (isMeetingWeatherQuestion(trimmed)) {
+    if (isMeetingWeatherQuestion(trimmed) && extensionSkillIds.length === 0) {
       await speakWeather(trimmed, preserveAcknowledgement);
       return;
     }
@@ -947,6 +957,7 @@ export function MeetingAssistant({ active = true, onRecordingChange }: { active?
         capabilityRevision: requestCapability.revision,
         accessMode: 'read_only' as const,
         mcpTools: meetingSkillSelection.mcpTools,
+        extensionSkillIds,
       };
       assertActive();
       let reply = await runClient.run(request);
@@ -1037,7 +1048,7 @@ export function MeetingAssistant({ active = true, onRecordingChange }: { active?
         speakReply(proposal);
       } else {
         const spoken = localMeetingSpokenReply(result.question, {
-          liveFactsAvailable: false,
+          liveFactsAvailable: extensionSkillIds.length > 0,
         });
         if (spoken) {
           const intro = isMeetingSelfIntroduction(result.question) ? MEETING_SELF_INTRODUCTION : null;
@@ -1348,6 +1359,8 @@ export function MeetingAssistant({ active = true, onRecordingChange }: { active?
     setStageOpen(true);
   }
   function exitStage(): void {
+    turns.clear();
+    void runClient.cancel().catch(() => {});
     setStageOpen(false);
   }
   async function readStoredMeetingTranscript(meetingId: string): Promise<string[]> {
@@ -1645,7 +1658,7 @@ export function MeetingAssistant({ active = true, onRecordingChange }: { active?
             }} />角色动画</label>
             <span role="status">{meetingCapabilities?.tts.available ? "语音播报已配置" : "语音未配置，回答以文字显示"}</span>
             <span>录音保存到：.local-data/recordings/本场会议目录</span>
-            <span>云文档集成可后续选配；当前使用本地导出。</span>
+            <span>办公软件可按扩展指南接入；本地导出仍可使用。</span>
             {presentedMeetingId ? <button type="button" onClick={() => void exportMarkdown()}>导出 Markdown 纪要</button> : null}
             <button type="button" disabled={agentConnecting || busy} title="重置模型对话历史，保留录音和逐字稿" onClick={() => void connectMeetingAgent(true)}>{agentConnecting ? '正在连接会议 Agent…' : '重新连接会议 Agent'}</button>
             <span>重新连接会重置模型对话历史；录音和逐字稿会保留。</span>
@@ -1668,7 +1681,10 @@ export function MeetingAssistant({ active = true, onRecordingChange }: { active?
             </div>
             <input aria-label="本场会议专有提示词" maxLength={1_000} value={meetingPromptAddon} onChange={(event) => setMeetingPromptAddon(event.currentTarget.value)} placeholder="本场会议专有提示词（可选）" />
           </div>
+          <MeetingExtensions selected={extensionSkillIds} onChange={setExtensionSkillIds} />
         </details>
+        <MeetingToolProgressView progress={toolProgress} />
+        {toolApproval ? <MeetingToolApprovalCard approval={toolApproval} onDecision={(approval, decision) => { void runClient.resolveToolApproval(approval, decision); }} /> : null}
           {presentation !== SUMMARY_PRESENTATION && presentation.kind === 'text' ? (
             <section className="meeting-answer-card" aria-live="polite" aria-label="会议助手最新回答">
               <header>

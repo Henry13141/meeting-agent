@@ -19,3 +19,11 @@ it('explains context overflow and an explicit reset while preserving recording d
   expect(message).toContain('重新连接会议 Agent');
   expect(message).toContain('录音和逐字稿会保留');
 });
+
+it.each(['EXTENSION_CONFIG_INVALID', 'SKILL_NOT_FOUND', 'SKILL_UNAVAILABLE', 'TOOL_NOT_ALLOWED', 'TOOL_ARGUMENTS_INVALID', 'TOOL_CALL_LIMIT_EXCEEDED', 'TOOL_TIMEOUT', 'TOOL_APPROVAL_TIMEOUT', 'TOOL_APPROVAL_DENIED', 'MCP_SERVER_UNAVAILABLE', 'MCP_TOOL_FAILED', 'TOOL_RESULT_TOO_LARGE', 'SKILL_TOO_LARGE', 'EXTENSION_LIMIT_EXCEEDED', 'MODEL_RESPONSE_TOO_LARGE', 'MEETING_RUN_IDLE_TIMEOUT', 'TOOL_APPROVAL_RESOLUTION_FAILED'])(
+  'explains fixed extension errors without exposing provider payloads: %s', code => {
+    const message = meetingErrorMessage(new Error(code));
+    expect(message).toMatch(/[\u4e00-\u9fff]/);
+    expect(message).not.toContain(code);
+  },
+);

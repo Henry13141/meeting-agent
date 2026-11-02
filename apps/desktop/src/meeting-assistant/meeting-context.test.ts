@@ -42,6 +42,7 @@ describe('meeting context boundaries', () => {
       expect(request.threadId).toMatch(/^meeting-summary:[0-9a-f-]{36}$/);
       expect(request.capabilityRevision).toBe(request.threadId + '-capability');
       expect(request.mcpTools).toEqual([]);
+      expect(request.extensionSkillIds).toEqual([]);
     }
   });
 });

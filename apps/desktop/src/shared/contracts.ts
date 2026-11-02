@@ -193,7 +193,28 @@ export const runModelReceiptSchema = z.object({
 export type RunModelReceipt = z.infer<typeof runModelReceiptSchema>;
 
 
-// Renderer requests are deliberately restricted to meeting read-only execution.
+export const extensionSkillIdSchema = z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$/);
+export const meetingExtensionCatalogSchema = z.object({
+  revision: z.string().min(1).max(128),
+  skills: z.array(z.object({ id: extensionSkillIdSchema, name: z.string().max(256),
+    description: z.string().max(4_096), tools: z.array(z.string().max(64)).max(256), available: z.boolean() })).max(128),
+  tools: z.array(z.object({ name: z.string().max(64), description: z.string().max(16_384),
+    serverId: extensionSkillIdSchema, effect: z.enum(['read', 'write']) })).max(256),
+  servers: z.array(z.object({ id: extensionSkillIdSchema, status: z.enum(['ready', 'disabled', 'error']),
+    error: z.string().max(128).optional() })).max(16),
+  error: z.string().max(128).optional(),
+});
+export type MeetingExtensionCatalog = z.infer<typeof meetingExtensionCatalogSchema>;
+export const toolApprovalRequestSchema = z.object({ threadId: identifierSchema, runId: identifierSchema,
+  approvalId: identifierSchema, decision: z.enum(['approve', 'deny']) }).strict();
+export type ToolApprovalRequest = z.infer<typeof toolApprovalRequestSchema>;
+export const meetingToolCallSchema = z.object({ id: identifierSchema, toolName: z.string().max(64),
+  serverId: extensionSkillIdSchema, status: z.string().max(64),
+  arguments: z.record(z.string(), z.unknown()), createdAt: z.number(),
+});
+export type MeetingToolCall = z.infer<typeof meetingToolCallSchema>;
+
+// Tools are derived by Runtime from selected, locally configured skills.
 export const runRequestSchema = z.object({
   requestId: identifierSchema, threadId: identifierSchema,
   message: z.string().trim().min(1).max(24_000),
@@ -201,6 +222,7 @@ export const runRequestSchema = z.object({
   catalogRevision: z.string().min(1), capabilityRevision: z.string().regex(/^[0-9a-f]{64}$/),
   accessMode: z.literal('read_only'),
   mcpTools: z.array(z.string().max(170)).max(0).default([]),
+  extensionSkillIds: z.array(extensionSkillIdSchema).max(16).optional(),
   knowledgeProjectId: z.string().trim().min(1).max(255).optional(),
 }).strict();
 export type AgentRunRequest = z.infer<typeof runRequestSchema>;
@@ -221,6 +243,7 @@ export const runStatusSchema = z.enum([
 export const runEventSchema = z.object({
   requestId: z.string().uuid(),
   sequence: z.number().int().positive().optional(),
+  runId: identifierSchema.optional(),
   event: z.string().min(1),
   data: z.unknown(),
 });
@@ -505,6 +528,9 @@ export type MeetingKnowledgePublishResult = z.infer<typeof meetingKnowledgePubli
 export interface MeetingDesktopApi {
   agent: {
     listModels(): Promise<ModelCatalog>;
+    listExtensions(): Promise<MeetingExtensionCatalog>;
+    resolveToolApproval(request: ToolApprovalRequest): Promise<{ accepted: boolean }>;
+    getToolCalls(threadId: string, runId: string): Promise<MeetingToolCall[]>;
     ensureConversationThread(request: ConversationThreadRequest): Promise<AgentThread>;
     getCodeWorkspaceCapability(threadId: string): Promise<CodeWorkspaceCapability>;
     pickWorkspace(): Promise<WorkspaceGrant | null>;

@@ -114,7 +114,8 @@ describe('meetingQuestionPrompt', () => {
       skills.prompt,
       '先讲风险',
     );
-    expect(prompt).toContain('不要修改文件');
+    expect(prompt).toContain('访问未授权文件');
+    expect(prompt).toContain('写工具须等待应用中的具体确认');
     expect(prompt).toContain('不要要求用户再打字');
     expect(prompt).toContain('讨论了 RAG');
     expect(prompt).toContain('是什么意思？');

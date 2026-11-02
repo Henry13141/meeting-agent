@@ -14,6 +14,7 @@
     "test": "vitest run --config vitest.config.ts && node --test scripts/configuration.test.mjs",
     "setup:local": "node scripts/configure.mjs",
     "smoke": "node scripts/smoke.mjs",
+    "smoke:extensions": "node scripts/extensions-smoke.mjs",
     "doctor": "node scripts/doctor.mjs"
   },
   "dependencies": {

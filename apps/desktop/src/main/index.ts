@@ -115,6 +115,14 @@ async function setup() {
 
   register('meeting-agent:agent', {
     listModels: async (args) => { noArgs(args); return C.modelCatalogSchema.parse(await runtime.catalog()); },
+    listExtensions: async (args) => { noArgs(args); return C.meetingExtensionCatalogSchema.parse(await runtime.extensions()); },
+    resolveToolApproval: async ([request]) => {
+      const input = C.toolApprovalRequestSchema.parse(request);
+      const owner = runRequests.get(input.runId);
+      if (!owner || owner.threadId !== input.threadId) throw new Error('MEETING_RUN_SCOPE_REJECTED');
+      return z.object({ accepted: z.boolean() }).parse(await runtime.resolveToolApproval(input));
+    },
+    getToolCalls: async ([threadId, runId]) => z.array(C.meetingToolCallSchema).parse(await runtime.toolCalls(id(threadId), id(runId))),
     ensureConversationThread: async ([request]) => {
       const input = C.conversationThreadRequestSchema.parse(request);
       if (input.surface !== 'dialog' || !/^(meeting-assistant|meeting-(?:summary|dialog):[0-9a-f-]{36})$/.test(input.contextId)) throw new Error('MEETING_THREAD_SCOPE_REJECTED');
@@ -126,7 +134,8 @@ async function setup() {
     startRun: async ([request]) => {
       const input = C.runRequestSchema.parse(request);
       if (input.knowledgeProjectId) throw new Error('MEETING_KNOWLEDGE_NOT_CONNECTED');
-      const accepted = await runtime.startRun(input.threadId, { requestId: input.requestId, message: input.message, modelProfileId: input.modelProfileId, thinking: input.thinking });
+      const accepted = await runtime.startRun(input.threadId, { requestId: input.requestId, message: input.message, modelProfileId: input.modelProfileId, thinking: input.thinking,
+        extensionSkillIds: input.extensionSkillIds });
       runRequests.set(accepted.runId, { threadId: input.threadId, requestId: input.requestId });
       return { accepted: true, runId: accepted.runId };
     },
@@ -139,7 +148,8 @@ async function setup() {
       if (owner && owner.threadId === thread) for (const event of page.events) {
         if (event.sequence <= (runEventCursor.get(run) ?? 0)) continue;
         runEventCursor.set(run, event.sequence);
-        if (window && !window.isDestroyed()) window.webContents.send('meeting-agent:run-event', { requestId: owner.requestId, event: event.event, data: event.data });
+        if (window && !window.isDestroyed()) window.webContents.send('meeting-agent:run-event', {
+          requestId: owner.requestId, runId: run, sequence: event.sequence, event: event.event, data: event.data });
       }
       return page;
     },
@@ -228,7 +238,7 @@ async function setup() {
       noArgs(args); const state = await runtime.status();
       return { application: 'Meeting Agent', runtime: { ready: state.ready, modelReady: state.modelReady && !modelEnvironmentError, phase: state.phase, error: modelEnvironmentError ?? state.error },
         asr: { ready: asrReady, error: meetings.asrError ?? asrError }, storage: '项目目录下 .local-data',
-        externalIntegrations: '云文档与外部协作平台按需选配，当前仅本地保存' };
+        externalIntegrations: '会议记录本地保存；外部工具按本机配置与本次确认执行' };
     },
     openDataDirectory: async (args) => { noArgs(args); const error = await shell.openPath(dataRoot); if (error) throw new Error('MEETING_DATA_OPEN_FAILED'); },
     exportMarkdown: async ([meetingId]) => {

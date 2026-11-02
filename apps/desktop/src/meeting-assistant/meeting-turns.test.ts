@@ -90,7 +90,7 @@ describe('meeting turns', () => {
 });
 
 describe('runtime error contract', () => {
-  it.each(['CONTEXT_LIMIT_EXCEEDED', 'TOOLS_UNAVAILABLE', 'MODEL_REPLY_INVALID', 'MODEL_REQUEST_FAILED', 'RUN_INTERRUPTED'])(
+  it.each(['CONTEXT_LIMIT_EXCEEDED', 'TOOLS_UNAVAILABLE', 'MODEL_REPLY_INVALID', 'MODEL_REQUEST_FAILED', 'RUN_INTERRUPTED', 'EXTENSION_CONFIG_INVALID', 'SKILL_NOT_FOUND', 'SKILL_UNAVAILABLE', 'TOOL_NOT_ALLOWED', 'TOOL_ARGUMENTS_INVALID', 'TOOL_CALL_LIMIT_EXCEEDED', 'TOOL_TIMEOUT', 'TOOL_APPROVAL_TIMEOUT', 'TOOL_APPROVAL_DENIED', 'MCP_SERVER_UNAVAILABLE', 'MCP_TOOL_FAILED', 'TOOL_RESULT_TOO_LARGE', 'SKILL_TOO_LARGE', 'EXTENSION_LIMIT_EXCEEDED', 'MODEL_RESPONSE_TOO_LARGE'])(
     'propagates the fixed runtime error %s', async code => {
       const api = fakeApi();
       api.getRunEvents.mockResolvedValue({ events: [{ sequence: 1, event: 'error', data: { code } }], status: 'failed', nextAfter: 1 });

@@ -28,3 +28,4 @@ jobs:
         env:
           MEETING_AGENT_RUNTIME_TEST_PYTHON: ${{ github.workspace }}/services/runtime/.venv/bin/python
       - run: pnpm run build
+      - run: xvfb-run --auto-servernum pnpm run smoke:extensions

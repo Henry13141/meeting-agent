@@ -14,7 +14,7 @@ function subscribe<T>(channel: string, listener: (value: T) => void): () => void
 
 const api: MeetingDesktopApi = {
   agent: {
-    ...methods<Omit<MeetingDesktopApi['agent'], 'onRunEvent'>>('meeting-agent:agent', ['listModels', 'ensureConversationThread', 'getCodeWorkspaceCapability', 'startRun', 'getRun', 'getRunEvents', 'cancelRun', 'pickWorkspace', 'createThread']),
+    ...methods<Omit<MeetingDesktopApi['agent'], 'onRunEvent'>>('meeting-agent:agent', ['listModels', 'listExtensions', 'resolveToolApproval', 'getToolCalls', 'ensureConversationThread', 'getCodeWorkspaceCapability', 'startRun', 'getRun', 'getRunEvents', 'cancelRun', 'pickWorkspace', 'createThread']),
     onRunEvent: (listener) => subscribe('meeting-agent:run-event', listener),
   },
   meetings: {

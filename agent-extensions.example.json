@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "servers": [
+    {
+      "id": "office",
+      "enabled": false,
+      "transport": "stdio",
+      "command": "{runtimePython}",
+      "args": ["examples/mock-office/server.py"],
+      "env": {},
+      "readOnlyTools": ["search_documents"]
+    }
+  ],
+  "skillDirectories": ["skills", ".agent/skills"]
+}

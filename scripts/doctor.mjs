@@ -28,7 +28,7 @@ function modulesAvailable(executable, modules) {
       WINDIR: process.env.WINDIR, TEMP: process.env.TEMP, TMP: process.env.TMP, PYTHONDONTWRITEBYTECODE: '1' } });
   return check.status === 0 && check.stdout.trim() === 'True';
 }
-report.runtimeDependencies = report.runtimePython && modulesAvailable(python, ['fastapi', 'httpx', 'uvicorn']);
+report.runtimeDependencies = report.runtimePython && modulesAvailable(python, ['fastapi', 'httpx', 'uvicorn', 'mcp', 'yaml', 'jsonschema']);
 report.asrDependencies = report.asrPython && modulesAvailable(asrPython, ['fastapi', 'funasr', 'torch', 'torchaudio']);
 report.ffmpeg = spawnSync('ffmpeg', ['-version'], { stdio: 'ignore', timeout: 10_000 }).status === 0;
 console.log(JSON.stringify(report, null, 2));
