@@ -1,0 +1,45 @@
+{
+  "name": "meeting-agent",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Open source desktop meeting recorder, local transcription and configurable AI summaries",
+  "packageManager": "pnpm@10.15.1",
+  "type": "module",
+  "main": "apps/desktop/out/main/index.js",
+  "scripts": {
+    "dev": "electron-vite dev --config apps/desktop/electron.vite.config.ts",
+    "build": "electron-vite build --config apps/desktop/electron.vite.config.ts",
+    "start": "electron .",
+    "typecheck": "tsc --noEmit -p apps/desktop/tsconfig.json",
+    "test": "vitest run --config vitest.config.ts && node --test scripts/configuration.test.mjs",
+    "setup:local": "node scripts/configure.mjs",
+    "smoke": "node scripts/smoke.mjs",
+    "doctor": "node scripts/doctor.mjs"
+  },
+  "dependencies": {
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "24.0.0",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.5",
+    "@vitejs/plugin-react": "5.2.0",
+    "electron": "44.0.0",
+    "electron-vite": "5.0.0",
+    "esbuild": "0.25.12",
+    "happy-dom": "20.14.6",
+    "playwright": "1.62.1",
+    "typescript": "6.0.3",
+    "vite": "7.3.6",
+    "vitest": "4.1.11"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "electron",
+      "esbuild"
+    ]
+  },
+  "license": "MIT"
+}

@@ -1,0 +1,30 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '24'
+      - run: npm install --global pnpm@10.15.1
+      - run: pnpm install --frozen-lockfile
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78
+        with:
+          version: '0.10.2'
+      - run: uv sync --project services/runtime --python 3.13 --frozen --group dev
+      - run: uv sync --project services/meeting-asr --python 3.13 --frozen --group dev
+      - run: uv run --directory services/runtime --frozen --group dev pytest -q
+      - run: uv run --directory services/meeting-asr --frozen --group dev pytest -q
+      - run: pnpm run typecheck
+      - run: pnpm test
+        env:
+          MEETING_AGENT_RUNTIME_TEST_PYTHON: ${{ github.workspace }}/services/runtime/.venv/bin/python
+      - run: pnpm run build
