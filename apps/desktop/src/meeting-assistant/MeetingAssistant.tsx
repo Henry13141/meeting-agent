@@ -1644,6 +1644,8 @@ export function MeetingAssistant({ active = true, onRecordingChange }: { active?
             <button className="meeting-dock__ghost" type="button" disabled={busy || presentation.kind !== "text" || !presentation.body} onClick={() => { if (presentation.kind === "text") speakReply(presentation.body); }}>重播回答</button>
           </div>
         </div>
+        <MeetingToolProgressView progress={toolProgress} />
+        {toolApproval ? <MeetingToolApprovalCard approval={toolApproval} onDecision={(approval, decision) => { void runClient.resolveToolApproval(approval, decision); }} /> : null}
         <details className="meeting-settings" onToggle={(event) => {
           settingsOpen.current = event.currentTarget.open;
           syncChromePin();
@@ -1683,8 +1685,6 @@ export function MeetingAssistant({ active = true, onRecordingChange }: { active?
           </div>
           <MeetingExtensions selected={extensionSkillIds} onChange={setExtensionSkillIds} />
         </details>
-        <MeetingToolProgressView progress={toolProgress} />
-        {toolApproval ? <MeetingToolApprovalCard approval={toolApproval} onDecision={(approval, decision) => { void runClient.resolveToolApproval(approval, decision); }} /> : null}
           {presentation !== SUMMARY_PRESENTATION && presentation.kind === 'text' ? (
             <section className="meeting-answer-card" aria-live="polite" aria-label="会议助手最新回答">
               <header>
